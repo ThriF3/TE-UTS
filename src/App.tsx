@@ -10,6 +10,8 @@ import ReturnsPage from './pages/ReturnsPage';
 import ReportsPage from './pages/ReportsPage';
 import MasterDataPage from './pages/MasterDataPage';
 import SettingsPage from './pages/SettingsPage';
+import GorLocationsPage from './pages/GorLocationsPage';
+import CourtsPage from './pages/CourtsPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -28,6 +30,8 @@ function AppRoutes() {
       <Route path="/pos" element={<PrivateRoute><POSPage /></PrivateRoute>} />
       <Route path="/returns" element={<PrivateRoute><ReturnsPage /></PrivateRoute>} />
       <Route path="/reports" element={<PrivateRoute><ReportsPage /></PrivateRoute>} />
+      <Route path="/gor-locations" element={<PrivateRoute><GorLocationsPage /></PrivateRoute>} />
+      <Route path="/courts" element={<PrivateRoute><CourtsPage /></PrivateRoute>} />
       <Route path="/masterdata" element={<PrivateRoute><MasterDataPage /></PrivateRoute>} />
       <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
       <Route path="*" element={<Navigate to="/dashboard" />} />

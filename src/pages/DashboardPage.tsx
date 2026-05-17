@@ -1,8 +1,13 @@
 import { useAuth } from '../features/auth/AuthContext';
-import { mockTransactions, mockContracts, mockOrders, mockReturns, mockCourts } from '../utils/mockData';
-import { formatCurrency, formatDateTime } from '../utils/helpers';
+import { useTransactionStats, useTransactions } from '../hooks/useTransactions';
+import { useContracts } from '../hooks/useContracts';
+import { useOrders } from '../hooks/useOrders';
+import { useReturns } from '../hooks/useReturns';
+import { useCourts } from '../hooks/useCourts';
+import { formatCurrency, extractList } from '../utils/helpers';
+import { Loader } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { TrendingUp, FileText, ShoppingCart, RotateCcw, Activity, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
+import { TrendingUp, FileText, ShoppingCart, RotateCcw, Activity, CheckCircle2, Clock } from 'lucide-react';
 
 const revenueData = [
   { day: 'Sen', revenue: 1200000 }, { day: 'Sel', revenue: 1800000 }, { day: 'Rab', revenue: 1400000 },
@@ -15,11 +20,25 @@ const courtUsageData = [
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const totalRevenue = mockTransactions.filter(t => t.status === 'completed').reduce((sum, t) => sum + t.totalAmount, 0);
-  const activeContracts = mockContracts.filter(c => c.status === 'active').length;
-  const pendingOrders = mockOrders.filter(o => o.status === 'pending').length;
-  const pendingReturns = mockReturns.filter(r => r.status === 'pending').length;
-  const availCourts = mockCourts.filter(c => c.isAvailable).length;
+
+  const { data: statsData, loading: statsLoading } = useTransactionStats();
+  const { data: contractsData, loading: contractsLoading } = useContracts(1, 0, 'active');
+  const { data: ordersData, loading: ordersLoading } = useOrders(1, 0, undefined, 'pending');
+  const { data: returnsData, loading: returnsLoading } = useReturns(1, 0, undefined, 'pending');
+  const { data: recentTransactionsData, loading: txLoading } = useTransactions(5, 0);
+  const { data: courtsData, loading: courtsLoading } = useCourts(50, 0);
+
+  const totalRevenue = statsData?.data?.total_revenue || 0;
+  const activeContracts = contractsData?.data?.total || 0;
+  const pendingOrders = ordersData?.data?.total || 0;
+  const pendingReturns = returnsData?.data?.total || 0;
+  const courtList = extractList(courtsData);
+
+  const isLoading = statsLoading || contractsLoading || ordersLoading || returnsLoading || txLoading || courtsLoading;
+
+  if (isLoading) {
+    return <div style={{ padding: 40, textAlign: 'center', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Loader size={48} className="animate-spin" color="var(--accent)" /></div>;
+  }
 
   const stats = [
     { label: 'Total Pendapatan', value: formatCurrency(totalRevenue), icon: TrendingUp, color: '#3b82f6', sub: 'Hari ini' },
@@ -65,7 +84,7 @@ export default function DashboardPage() {
             <LineChart data={revenueData}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} tickFormatter={v => `${v/1000000}jt`} />
+              <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} tickFormatter={v => `${v / 1000000}jt`} />
               <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
               <Line type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6', r: 3 }} />
             </LineChart>
@@ -104,14 +123,17 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {mockTransactions.map(t => (
+                {recentTransactionsData?.data?.data?.map(t => (
                   <tr key={t.id}>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)' }}>{t.noTransaksi}</td>
-                    <td>{t.customerName}</td>
-                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{formatCurrency(t.totalAmount)}</td>
-                    <td><span className="badge badge-green">Selesai</span></td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)' }}>{t.no_transaksi}</td>
+                    <td>Pelanggan #{t.customer_id}</td>
+                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{formatCurrency(t.total_amount)}</td>
+                    <td><span className={`badge ${t.status === 'completed' ? 'badge-green' : 'badge-orange'}`}>{t.status === 'completed' ? 'Selesai' : t.status}</span></td>
                   </tr>
                 ))}
+                {(!recentTransactionsData?.data?.data || recentTransactionsData.data.data.length === 0) && (
+                  <tr><td colSpan={4} style={{ textAlign: 'center', padding: 20 }}>Tidak ada transaksi terbaru</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -121,18 +143,20 @@ export default function DashboardPage() {
         <div className="card">
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Status Lapangan</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {mockCourts.map(c => (
+            {courtList.length > 0 ? courtList.map((c: any) => (
               <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {c.isAvailable ? <CheckCircle2 size={14} color="#10b981" /> : <Clock size={14} color="#f59e0b" />}
+                  {c.is_available ? <CheckCircle2 size={14} color="#10b981" /> : <Clock size={14} color="#f59e0b" />}
                   <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{c.name}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatCurrency(c.pricePerHour)}/jam</span>
-                  <span className={`badge ${c.isAvailable ? 'badge-green' : 'badge-orange'}`}>{c.isAvailable ? 'Tersedia' : 'Terpakai'}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatCurrency(c.price_per_hour)}/jam</span>
+                  <span className={`badge ${c.is_available ? 'badge-green' : 'badge-orange'}`}>{c.is_available ? 'Tersedia' : 'Terpakai'}</span>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: 13 }}>Tidak ada data lapangan</div>
+            )}
           </div>
         </div>
       </div>

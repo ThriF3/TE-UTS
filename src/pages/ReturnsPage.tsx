@@ -1,39 +1,77 @@
 import { useState } from 'react';
-import { mockReturns, mockTransactions } from '../utils/mockData';
-import { Return, ReturnItem, ReturnType, ReturnStatus } from '../types';
+import { ReturnItem } from '../types';
 import { formatCurrency, formatDate, getReturnStatusBadge, statusLabel, generateId } from '../utils/helpers';
-import { Plus, Search, Eye, X, RotateCcw, CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import { Plus, Search, Eye, X, RotateCcw, CheckCircle, XCircle, Trash2, Loader, RefreshCw } from 'lucide-react';
+import { useReturns, useCreateReturn, useApproveReturn, useCompleteReturn, useRejectReturn } from '../hooks/useReturns';
+import { useTransactions } from '../hooks/useTransactions';
 
 export default function ReturnsPage() {
-  const [returns, setReturns] = useState<Return[]>(mockReturns);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showModal, setShowModal] = useState(false);
-  const [selectedReturn, setSelectedReturn] = useState<Return | null>(null);
+  const [selectedReturn, setSelectedReturn] = useState<any | null>(null);
   const [viewMode, setViewMode] = useState(false);
-  const [form, setForm] = useState<Partial<Return>>({
-    type: 'retur_barang', transactionId: '', noTransaksi: '', customerName: '',
+  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState<any>({
+    type: 'retur_barang', transactionId: '', customerName: '',
     items: [], totalRefund: 0, refundType: 'partial', refundMethod: 'cash', reason: '', status: 'pending'
   });
   const [newItem, setNewItem] = useState({ itemName: '', quantity: 1, unitPrice: 0, reason: '' });
 
-  const filtered = returns.filter(r => {
-    const ms = r.noRetur.toLowerCase().includes(search.toLowerCase()) || r.customerName.toLowerCase().includes(search.toLowerCase()) || r.noTransaksi.toLowerCase().includes(search.toLowerCase());
+  const { data: retData, loading, error, mutate: refetch } = useReturns(100, 0);
+  const { data: txData } = useTransactions(100, 0);
+  const createMutation = useCreateReturn();
+  const approveMutation = useApproveReturn();
+  const completeMutation = useCompleteReturn();
+  const rejectMutation = useRejectReturn();
+
+  const returns = retData?.data?.data || [];
+  const transactions = txData?.data?.data || [];
+
+  const filtered = returns.filter((r: any) => {
+    const ms = r.no_retur.toLowerCase().includes(search.toLowerCase()) || String(r.customer_id).includes(search);
     return ms && (filterStatus === 'all' || r.status === filterStatus);
   });
 
   const openCreate = () => {
     setSelectedReturn(null);
-    setForm({ type: 'retur_barang', transactionId: '', noTransaksi: '', customerName: '', items: [], totalRefund: 0, refundType: 'partial', refundMethod: 'cash', reason: '', status: 'pending' });
+    setForm({ type: 'retur_barang', transactionId: '', customerName: '', items: [], totalRefund: 0, refundType: 'partial', refundMethod: 'cash', reason: '', status: 'pending' });
     setViewMode(false);
     setShowModal(true);
   };
 
-  const openView = (r: Return) => { setSelectedReturn(r); setViewMode(true); setShowModal(true); };
+  const openView = (r: any) => { setSelectedReturn(r); setViewMode(true); setShowModal(true); };
 
-  const handleStatusChange = (id: string, status: ReturnStatus) => {
-    setReturns(prev => prev.map(r => r.id === id ? { ...r, status, approvedBy: status === 'approved' || status === 'completed' ? 'Admin GOR' : r.approvedBy } : r));
-    setSelectedReturn(prev => prev?.id === id ? { ...prev, status } : prev);
+  const handleStatusChange = async (id: string | number, status: string) => {
+    try {
+      if (status === 'approved') {
+        await approveMutation.mutate(id);
+
+        alert('Retur disetujui');
+      }
+      else if (status === 'completed') {
+        await completeMutation.mutate(id);
+
+        alert('Retur diselesaikan');
+      }
+      else if (status === 'rejected') {
+        await rejectMutation.mutate(id);
+
+        alert('Retur ditolak');
+      }
+
+      await refetch();
+
+      if (selectedReturn?.id === id) {
+        setSelectedReturn((prev: any) => ({
+          ...prev,
+          status,
+        }));
+      }
+
+    } catch (e: any) {
+      alert(`Gagal: ${e.message}`);
+    }
   };
 
   const set = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }));
@@ -52,30 +90,35 @@ export default function ReturnsPage() {
     setForm(p => ({ ...p, items, totalRefund: items.reduce((s: number, i: ReturnItem) => s + i.subtotal, 0) }));
   };
 
-  const handleSave = () => {
-    if (!form.customerName || !form.reason || !form.items?.length) { alert('Lengkapi semua data retur.'); return; }
-    const newReturn: Return = {
-      id: `r${Date.now()}`,
-      noRetur: `RTR/2024/${String(returns.length + 1).padStart(3, '0')}`,
-      type: form.type as ReturnType,
-      transactionId: form.transactionId || '',
-      noTransaksi: form.noTransaksi || '',
-      customerId: 'u_guest',
-      customerName: form.customerName!,
-      items: form.items as ReturnItem[],
-      totalRefund: form.totalRefund || 0,
-      refundType: form.refundType as 'full' | 'partial',
-      refundMethod: form.refundMethod as any,
-      reason: form.reason!,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      createdBy: 'u1'
-    };
-    setReturns(prev => [...prev, newReturn]);
-    setShowModal(false);
+  const handleSave = async () => {
+    if (!form.reason || !form.items?.length) { alert('Lengkapi semua data retur.'); return; }
+
+    setSubmitting(true);
+    try {
+      const payload = {
+        return_type: form.type,
+        transaction_id: parseInt(form.transactionId) || undefined,
+        customer_id: 1, // Mock
+        total_refund: form.totalRefund,
+        refund_type: form.refundType,
+        refund_method: form.refundMethod,
+        reason: form.reason
+      };
+      await createMutation.mutate(payload);
+      alert('Retur berhasil diajukan');
+      refetch();
+      setShowModal(false);
+    } catch (e: any) {
+      alert(`Gagal: ${e.message}`);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const typeColorMap: Record<string, string> = { retur_barang: 'badge-orange', pembatalan_booking: 'badge-red', koreksi_transaksi: 'badge-purple' };
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><Loader size={24} className="animate-spin" /></div>;
+  if (error) return <div style={{ padding: 40, color: 'red' }}>Error: {error}</div>;
 
   return (
     <div>
@@ -94,13 +137,13 @@ export default function ReturnsPage() {
         </div>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ width: 150 }}>
           <option value="all">Semua Status</option>
-          {['pending','approved','rejected','completed','draft'].map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
+          {['pending', 'approved', 'rejected', 'completed', 'draft'].map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
         </select>
       </div>
 
       {/* Summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10, marginBottom: 20 }}>
-        {['pending','approved','rejected','completed'].map(st => (
+        {['pending', 'approved', 'rejected', 'completed'].map(st => (
           <div key={st} className="card" style={{ padding: '12px 16px' }}>
             <div style={{ fontSize: 22, fontWeight: 800 }}>{returns.filter(r => r.status === st).length}</div>
             <span className={`badge ${getReturnStatusBadge(st)}`}>{statusLabel(st)}</span>
@@ -114,16 +157,16 @@ export default function ReturnsPage() {
             <thead><tr><th>No. Retur</th><th>Tipe</th><th>No. Transaksi</th><th>Pelanggan</th><th>Total Refund</th><th>Metode Refund</th><th>Status</th><th>Tanggal</th><th>Aksi</th></tr></thead>
             <tbody>
               {filtered.length === 0 && <tr><td colSpan={9} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>Tidak ada data retur</td></tr>}
-              {filtered.map(r => (
+              {filtered.map((r: any) => (
                 <tr key={r.id}>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)' }}>{r.noRetur}</td>
-                  <td><span className={`badge ${typeColorMap[r.type] || 'badge-gray'}`}>{statusLabel(r.type)}</span></td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>{r.noTransaksi || '-'}</td>
-                  <td>{r.customerName}</td>
-                  <td style={{ fontWeight: 700, color: '#f87171' }}>{formatCurrency(r.totalRefund)}</td>
-                  <td><span className="badge badge-blue">{statusLabel(r.refundMethod)}</span></td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)' }}>{r.no_retur}</td>
+                  <td><span className={`badge ${typeColorMap[r.return_type] || 'badge-gray'}`}>{statusLabel(r.return_type)}</span></td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>{r.transaction_id ? `TX #${r.transaction_id}` : '-'}</td>
+                  <td>Pelanggan #{r.customer_id}</td>
+                  <td style={{ fontWeight: 700, color: '#f87171' }}>{formatCurrency(r.total_refund)}</td>
+                  <td><span className="badge badge-blue">{statusLabel(r.refund_method)}</span></td>
                   <td><span className={`badge ${getReturnStatusBadge(r.status)}`}>{statusLabel(r.status)}</span></td>
-                  <td style={{ fontSize: 12 }}>{formatDate(r.createdAt)}</td>
+                  <td style={{ fontSize: 12 }}>{formatDate(r.created_at)}</td>
                   <td>
                     <div style={{ display: 'flex', gap: 4 }}>
                       <button className="btn btn-secondary btn-sm" onClick={() => openView(r)}><Eye size={13} /></button>
@@ -187,13 +230,12 @@ export default function ReturnsPage() {
                     <div className="form-group">
                       <label>No. Transaksi Asal</label>
                       <select value={form.transactionId} onChange={e => {
-                        const trx = mockTransactions.find(t => t.id === e.target.value);
+                        const trx = transactions.find((t: any) => String(t.id) === e.target.value);
                         set('transactionId', e.target.value);
-                        set('noTransaksi', trx?.noTransaksi || '');
-                        if (trx) set('customerName', trx.customerName);
+                        if (trx) set('customerName', `Pelanggan #${trx.customer_id}`);
                       }}>
                         <option value="">-- Pilih Transaksi --</option>
-                        {mockTransactions.map(t => <option key={t.id} value={t.id}>{t.noTransaksi} - {t.customerName}</option>)}
+                        {transactions.map((t: any) => <option key={t.id} value={t.id}>{t.no_transaksi} - Pelanggan #{t.customer_id}</option>)}
                       </select>
                     </div>
                     <div className="form-group">
@@ -254,7 +296,9 @@ export default function ReturnsPage() {
             {!viewMode && (
               <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                 <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Batal</button>
-                <button className="btn btn-primary" onClick={handleSave}><RotateCcw size={14} /> Ajukan Retur</button>
+                <button className="btn btn-primary" onClick={handleSave} disabled={submitting}>
+                  {submitting ? 'Memproses...' : <><RotateCcw size={14} /> Ajukan Retur</>}
+                </button>
               </div>
             )}
           </div>
@@ -264,40 +308,29 @@ export default function ReturnsPage() {
   );
 }
 
-function ReturnDetail({ ret: r }: { ret: Return }) {
+function ReturnDetail({ ret: r }: { ret: any }) {
   return (
     <div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <span className={`badge ${getReturnStatusBadge(r.status)}`}>{statusLabel(r.status)}</span>
-        <span className="badge badge-orange">{statusLabel(r.type)}</span>
-        <span className={`badge ${r.refundType === 'full' ? 'badge-green' : 'badge-blue'}`}>{statusLabel(r.refundType)} Refund</span>
+        <span className="badge badge-orange">{statusLabel(r.return_type)}</span>
+        <span className={`badge ${r.refund_type === 'full' ? 'badge-green' : 'badge-blue'}`}>{statusLabel(r.refund_type)} Refund</span>
       </div>
       <div className="form-row" style={{ marginBottom: 12 }}>
-        <div><div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>No. Retur</div><div style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{r.noRetur}</div></div>
-        <div><div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>No. Transaksi Asal</div><div style={{ fontFamily: 'var(--font-mono)' }}>{r.noTransaksi || '-'}</div></div>
+        <div><div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>No. Retur</div><div style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{r.no_retur}</div></div>
+        <div><div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>No. Transaksi Asal</div><div style={{ fontFamily: 'var(--font-mono)' }}>{r.transaction_id ? `TX #${r.transaction_id}` : '-'}</div></div>
       </div>
       <div className="form-row" style={{ marginBottom: 12 }}>
-        <div><div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Pelanggan</div><div>{r.customerName}</div></div>
-        <div><div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Tanggal</div><div>{formatDate(r.createdAt)}</div></div>
+        <div><div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Pelanggan</div><div>Pelanggan #{r.customer_id}</div></div>
+        <div><div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Tanggal</div><div>{formatDate(r.created_at || new Date().toISOString())}</div></div>
       </div>
       <div style={{ marginBottom: 12 }}><div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Alasan Retur</div><div style={{ fontSize: 13 }}>{r.reason}</div></div>
-      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Item yang Dikembalikan</div>
-      <table><thead><tr><th>Item</th><th>Qty</th><th>Harga</th><th>Alasan</th><th>Subtotal</th></tr></thead>
-        <tbody>
-          {r.items.map(i => (
-            <tr key={i.id}>
-              <td>{i.itemName}</td><td>{i.quantity}</td><td>{formatCurrency(i.unitPrice)}</td>
-              <td style={{ fontSize: 12 }}>{i.reason}</td>
-              <td style={{ fontWeight: 700, color: '#f87171' }}>{formatCurrency(i.subtotal)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+
       <div style={{ textAlign: 'right', marginTop: 10, padding: '10px 0', borderTop: '1px solid var(--border)' }}>
-        <span style={{ fontSize: 16, fontWeight: 800, color: '#f87171' }}>Total Refund: {formatCurrency(r.totalRefund)}</span>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Via {statusLabel(r.refundMethod)}</div>
+        <span style={{ fontSize: 16, fontWeight: 800, color: '#f87171' }}>Total Refund: {formatCurrency(r.total_refund)}</span>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Via {statusLabel(r.refund_method)}</div>
       </div>
-      {r.approvedBy && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>Diproses oleh: {r.approvedBy}</div>}
+      {r.approved_by && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>Diproses oleh: Kasir #{r.approved_by}</div>}
     </div>
   );
 }

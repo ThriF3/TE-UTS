@@ -34,6 +34,7 @@ export class ReturnController {
         refund_type,
         refund_method,
         reason,
+        created_by: req.user.userId,
       });
 
       return sendSuccess(res, 'Return created successfully', returnData, 201);
@@ -91,6 +92,38 @@ export class ReturnController {
       return sendSuccess(res, 'Return approved successfully', returnData);
     } catch (error) {
       return sendError(res, (error as any).message || 'Failed to approve return', 500, error);
+    }
+  }
+
+  static async completeReturn(req: AuthenticatedRequest, res: Response) {
+    try {
+      if (!req.user) {
+        return sendError(res, 'Not authenticated', 401);
+      }
+
+      const { id } = req.params;
+
+      const returnData = await ReturnService.completeReturn(BigInt(id), req.user.userId);
+
+      return sendSuccess(res, 'Return completed successfully', returnData);
+    } catch (error) {
+      return sendError(res, (error as any).message || 'Failed to complete return', 500, error);
+    }
+  }
+
+  static async rejectReturn(req: AuthenticatedRequest, res: Response) {
+    try {
+      if (!req.user) {
+        return sendError(res, 'Not authenticated', 401);
+      }
+
+      const { id } = req.params;
+
+      const returnData = await ReturnService.rejectReturn(BigInt(id), req.user.userId);
+
+      return sendSuccess(res, 'Return rejected successfully', returnData);
+    } catch (error) {
+      return sendError(res, (error as any).message || 'Failed to reject return', 500, error);
     }
   }
 }

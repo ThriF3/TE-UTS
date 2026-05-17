@@ -23,7 +23,7 @@ export function useLowStockItems() {
 }
 
 export function useCreateStockItem() {
-  return useMutation((data) =>
+  return useMutation((data: any) =>
     stockService.createStockItem(data).then(res => {
       if (!res.success) throw new Error(res.message);
       return res.data;

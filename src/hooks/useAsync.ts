@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export interface UseAsyncState<T> {
   data: T | null;
@@ -9,19 +9,26 @@ export interface UseAsyncState<T> {
 export function useAsync<T>(
   fn: () => Promise<T>,
   deps: any[] = []
-): UseAsyncState<T> {
+): UseAsyncState<T> & { mutate: () => void } {
   const [state, setState] = useState<UseAsyncState<T>>({
     data: null,
     loading: true,
     error: null,
   });
+  const [refetchKey, setRefetchKey] = useState(0);
+  const fnRef = useRef(fn);
+  fnRef.current = fn;
+
+  const mutate = useCallback(() => {
+    setRefetchKey(k => k + 1);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     setState(prev => ({ ...prev, loading: true, error: null }));
 
-    fn()
+    fnRef.current()
       .then(data => {
         if (!cancelled) setState({ data, loading: false, error: null });
       })
@@ -38,10 +45,11 @@ export function useAsync<T>(
     return () => {
       cancelled = true;
     };
-  }, deps);
+  }, [...deps, refetchKey]);
 
-  return state;
+  return { ...state, mutate };
 }
+
 
 export function useMutation<TData, TVariables>(
   fn: (variables: TVariables) => Promise<TData>

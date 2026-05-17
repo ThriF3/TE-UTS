@@ -48,4 +48,12 @@ export const returnService = {
   async approveReturn(id: number | string): Promise<ApiResponse<Return>> {
     return ApiClient.post<Return>(`/returns/${id}/approve`);
   },
+
+  async completeReturn(id: number | string): Promise<ApiResponse<Return>> {
+    return ApiClient.post<Return>(`/returns/${id}/complete`);
+  },
+
+  async rejectReturn(id: number | string): Promise<ApiResponse<Return>> {
+    return ApiClient.post<Return>(`/returns/${id}/reject`);
+  },
 };

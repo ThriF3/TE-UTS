@@ -1,4 +1,5 @@
-import { authService } from '../services/authService';
+import { authService, RegisterData } from '../services/authService';
+import { User } from '../types';
 import { useMutation } from './useAsync';
 
 export function useLogin() {
@@ -11,7 +12,7 @@ export function useLogin() {
 }
 
 export function useRegister() {
-  return useMutation((data) =>
+  return useMutation((data: RegisterData) =>
     authService.register(data).then(res => {
       if (!res.success) throw new Error(res.message);
       return res.data;
@@ -30,7 +31,7 @@ export function useChangePassword() {
 }
 
 export function useUpdateProfile() {
-  return useMutation((data) =>
+  return useMutation((data: User) =>
     authService.updateProfile(data).then(res => {
       if (!res.success) throw new Error(res.message);
       return res.data;

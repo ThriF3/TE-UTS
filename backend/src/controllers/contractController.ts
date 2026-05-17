@@ -92,7 +92,24 @@ export class ContractController {
     try {
       const { id } = req.params;
 
-      const contract = await ContractService.updateContract(BigInt(id), req.body);
+
+      // Clone body to avoid mutating original request
+      const payload = { ...req.body };
+
+      // List all DATE columns here
+      const dateFields = ['start_date', 'end_date'];
+
+      for (const field of dateFields) {
+        if (payload[field]) {
+          const value = payload[field];
+
+          // Check if value looks like ISO datetime/timestamp
+          if (typeof value === 'string' && value.includes('T')) {
+            payload[field] = value.split('T')[0];
+          }
+        }
+      }
+      const contract = await ContractService.updateContract(BigInt(id), payload);
 
       return sendSuccess(res, 'Contract updated successfully', contract);
     } catch (error) {

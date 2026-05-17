@@ -14,25 +14,29 @@ export type ContractStatus = 'draft' | 'review' | 'active' | 'expired' | 'comple
 export type PaymentType = 'cash' | 'TOP';
 
 export interface Contract {
-  id: string;
-  noPKS: string;
+  id: bigint;
+  no_pks: string;
   title: string;
-  partyFirst: string;  // Vendor/GOR
-  partySecond: string; // Supplier/Reseller/Pelanggan
-  partyThird?: string;
-  objectContract: string;
+  party_first: string;
+  party_second: string;
+  party_third?: string;
+  object_contract: string;
   quantity: number;
   unit: string;
   price: number;
-  paymentType: PaymentType;
-  topDays?: number;
-  returnPolicy: string;
-  startDate: string;
-  endDate: string;
-  status: ContractStatus;
-  fileUrl?: string;
-  createdAt: string;
-  createdBy: string;
+  payment_type: 'cash' | 'TOP';
+  top_days?: number;
+  return_policy?: string;
+  start_date: Date;
+  end_date: Date;
+  status: 'draft' | 'review' | 'active' | 'expired' | 'completed' | 'renewed' | 'terminated';
+  file_url?: string;
+  notes?: string;
+  created_by: bigint;
+  reviewed_by?: bigint;
+  approved_by?: bigint;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export type OrderStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'paid' | 'cancelled';

@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, ShoppingCart, CreditCard, RotateCcw,
   BarChart2, Database, Settings, LogOut, Menu, X, Building2,
-  ChevronRight, Bell, User
+  ChevronRight, Bell, User, MapPin, Dumbbell
 } from 'lucide-react';
 import { useAuth, canAccess } from '../../features/auth/AuthContext';
 
@@ -14,6 +14,8 @@ const navItems = [
   { path: '/pos', label: 'POS Kasir', icon: CreditCard, feature: 'pos' },
   { path: '/returns', label: 'Retur', icon: RotateCcw, feature: 'returns' },
   { path: '/reports', label: 'Laporan', icon: BarChart2, feature: 'reports' },
+  { path: '/gor-locations', label: 'Lokasi GOR', icon: MapPin, feature: 'masterdata' },
+  { path: '/courts', label: 'Lapangan', icon: Dumbbell, feature: 'masterdata' },
   { path: '/masterdata', label: 'Master Data', icon: Database, feature: 'masterdata' },
   { path: '/settings', label: 'Pengaturan', icon: Settings, feature: 'settings' },
 ];
