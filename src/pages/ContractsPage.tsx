@@ -6,7 +6,7 @@ import { Contract, ContractStatus } from '../types';
 import { formatCurrency, formatDate, getContractStatusBadge, statusLabel, generateNoPKS, exportContractPdf, formatValue } from '../utils/helpers';
 import { Plus, Search, Eye, Edit2, FileText, X, CheckCircle, XCircle, Loader } from 'lucide-react';
 
-const emptyContract: Omit<Contract, 'id' | 'created_at' | 'created_by' | 'updated_at' | 'reviewed_by' | 'approved_by' | 'notes'> = {
+const emptyContract: any = {
   no_pks: '', title: '', party_first: 'GOR Maju Jaya', party_second: '', party_third: '',
   object_contract: '', quantity: 1, unit: 'Unit', price: 0, payment_type: 'cash',
   top_days: 30, return_policy: '', start_date: '', end_date: '', status: 'draft', file_url: ''
@@ -82,7 +82,7 @@ export default function ContractsPage() {
       .toString()
       .replace(/[^\w.-]+/g, "_")}.pdf`;
 
-    exportContractPdf(selectedContract as unknown as Record<string, unknown>, "Detail PKS", safeName);
+    exportContractPdf(selectedContract as any);
   };
 
   const handleSave = async () => {
@@ -96,7 +96,7 @@ export default function ContractsPage() {
       if (selectedContract) {
         // Update existing contract
         await updateMutation.mutate({
-          id: selectedContract.id,
+          id: selectedContract.id as any,
           data: form
         });
         alert('Kontrak berhasil diperbarui');
@@ -205,7 +205,7 @@ export default function ContractsPage() {
             </thead>
             <tbody>
               {filtered.map(c => (
-                <tr key={c.id} style={{ borderBottom: '1px solid var(--border-color)', hover: { background: 'var(--bg-secondary)' } }}>
+                <tr key={c.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '12px 16px' }}><strong>{c.no_pks}</strong></td>
                   <td style={{ padding: '12px 16px' }}>{c.title}</td>
                   <td style={{ padding: '12px 16px' }}>{c.party_second}</td>
@@ -222,10 +222,10 @@ export default function ContractsPage() {
                   </td>
                   <td style={{ textAlign: 'center', padding: '12px 16px' }}>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                      <button onClick={() => openView(c)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }} title="Lihat">
+                      <button onClick={() => openView(c as any)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }} title="Lihat">
                         <Eye size={16} color="var(--text-muted)" />
                       </button>
-                      <button onClick={() => openEdit(c)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }} title="Edit">
+                      <button onClick={() => openEdit(c as any)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }} title="Edit">
                         <Edit2 size={16} color="var(--text-muted)" />
                       </button>
                     </div>
@@ -343,7 +343,7 @@ export default function ContractsPage() {
                   <input
                     type="text"
                     value={form.title}
-                    onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                    onChange={(e) => setForm((p: any) => ({ ...p, title: e.target.value }))}
                   />
                 </div>
 
@@ -352,7 +352,7 @@ export default function ContractsPage() {
                   <input
                     type="text"
                     value={form.party_first}
-                    onChange={(e) => setForm((p) => ({ ...p, party_first: e.target.value }))}
+                    onChange={(e) => setForm((p: any) => ({ ...p, party_first: e.target.value }))}
                   />
                 </div>
 
@@ -361,7 +361,7 @@ export default function ContractsPage() {
                   <input
                     type="text"
                     value={form.party_second}
-                    onChange={(e) => setForm((p) => ({ ...p, party_second: e.target.value }))}
+                    onChange={(e) => setForm((p: any) => ({ ...p, party_second: e.target.value }))}
                   />
                 </div>
 
@@ -370,7 +370,7 @@ export default function ContractsPage() {
                   <input
                     type="text"
                     value={form.party_third ?? ""}
-                    onChange={(e) => setForm((p) => ({ ...p, party_third: e.target.value }))}
+                    onChange={(e) => setForm((p: any) => ({ ...p, party_third: e.target.value }))}
                   />
                 </div>
 
@@ -378,7 +378,7 @@ export default function ContractsPage() {
                   <label>Objek Kontrak *</label>
                   <textarea
                     value={form.object_contract}
-                    onChange={(e) => setForm((p) => ({ ...p, object_contract: e.target.value }))}
+                    onChange={(e) => setForm((p: any) => ({ ...p, object_contract: e.target.value }))}
                     rows={3}
                   />
                 </div>
@@ -390,7 +390,7 @@ export default function ContractsPage() {
                       type="number"
                       value={form.quantity}
                       onChange={(e) =>
-                        setForm((p) => ({ ...p, quantity: Number(e.target.value) }))
+                        setForm((p: any) => ({ ...p, quantity: Number(e.target.value) }))
                       }
                     />
                   </div>
@@ -400,7 +400,7 @@ export default function ContractsPage() {
                     <input
                       type="text"
                       value={form.unit}
-                      onChange={(e) => setForm((p) => ({ ...p, unit: e.target.value }))}
+                      onChange={(e) => setForm((p: any) => ({ ...p, unit: e.target.value }))}
                     />
                   </div>
                 </div>
@@ -410,7 +410,7 @@ export default function ContractsPage() {
                   <input
                     type="number"
                     value={form.price}
-                    onChange={(e) => setForm((p) => ({ ...p, price: Number(e.target.value) }))}
+                    onChange={(e) => setForm((p: any) => ({ ...p, price: Number(e.target.value) }))}
                   />
                 </div>
 
@@ -420,7 +420,7 @@ export default function ContractsPage() {
                     <select
                       value={form.payment_type}
                       onChange={(e) =>
-                        setForm((p) => ({ ...p, payment_type: e.target.value as "cash" | "TOP" }))
+                        setForm((p: any) => ({ ...p, payment_type: e.target.value as "cash" | "TOP" }))
                       }
                     >
                       <option value="cash">Tunai</option>
@@ -435,7 +435,7 @@ export default function ContractsPage() {
                         type="number"
                         value={form.top_days ?? ""}
                         onChange={(e) =>
-                          setForm((p) => ({ ...p, top_days: Number(e.target.value) }))
+                          setForm((p: any) => ({ ...p, top_days: Number(e.target.value) }))
                         }
                       />
                     </div>
@@ -448,7 +448,7 @@ export default function ContractsPage() {
                     <input
                       type="date"
                       value={form.start_date}
-                      onChange={(e) => setForm((p) => ({ ...p, start_date: e.target.value }))}
+                      onChange={(e) => setForm((p: any) => ({ ...p, start_date: e.target.value }))}
                     />
                   </div>
 
@@ -457,7 +457,7 @@ export default function ContractsPage() {
                     <input
                       type="date"
                       value={form.end_date}
-                      onChange={(e) => setForm((p) => ({ ...p, end_date: e.target.value }))}
+                      onChange={(e) => setForm((p: any) => ({ ...p, end_date: e.target.value }))}
                     />
                   </div>
                 </div>
@@ -466,7 +466,7 @@ export default function ContractsPage() {
                   <label>Kebijakan Retur</label>
                   <textarea
                     value={form.return_policy ?? ""}
-                    onChange={(e) => setForm((p) => ({ ...p, return_policy: e.target.value }))}
+                    onChange={(e) => setForm((p: any) => ({ ...p, return_policy: e.target.value }))}
                     rows={2}
                   />
                 </div>

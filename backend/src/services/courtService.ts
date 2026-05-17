@@ -62,7 +62,7 @@ export class CourtService {
     static async getCourtById(id: number): Promise<CourtUnit> {
         const [rows] = await pool.query<any[]>(`
       SELECT * FROM court_units
-      WHERE id = ? AND is_deleted = 0
+      WHERE id = ?
     `, [id]);
         if (rows.length === 0) {
             throw new NotFoundError('Court not found');
@@ -79,7 +79,7 @@ export class CourtService {
         available?: boolean;
     }): Promise<{ data: CourtUnit[]; total: number }> {
         const { limit = 10, offset = 0, locationId, courtType, available } = params;
-        const conditions: string[] = ['is_deleted = 0'];
+        const conditions: string[] = [];
         const values: any[] = [];
 
         if (locationId) {
@@ -155,7 +155,7 @@ export class CourtService {
         }
 
         await pool.query(
-            `UPDATE court_units SET ${fields.join(', ')} WHERE id = ? AND is_deleted = 0`,
+            `UPDATE court_units SET ${fields.join(', ')} WHERE id = ?`,
             [...values, id]
         );
         return this.getCourtById(id);
@@ -164,7 +164,7 @@ export class CourtService {
     /** DELETE → soft‑delete */
     static async deleteCourt(id: number): Promise<void> {
         const [result] = await pool.query<any>(`
-      UPDATE court_units SET is_deleted = 1 WHERE id = ?
+      DELETE FROM court_units WHERE id = ?
     `, [id]);
         if (result.affectedRows === 0) {
             throw new NotFoundError('Court not found');
@@ -182,7 +182,6 @@ export class CourtService {
             capacity: row.capacity != null ? Number(row.capacity) : undefined,
             description: row.description ?? undefined,
             is_available: Boolean(row.is_available),
-            is_deleted: Boolean(row.is_deleted),
             created_at: new Date(row.created_at),
         };
     }

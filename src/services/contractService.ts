@@ -1,7 +1,7 @@
 import { ApiClient, ApiResponse } from './api';
 import { Contract } from '../types';
 
-export interface ContractResponse extends Contract {
+export interface ContractResponse extends Omit<Contract, 'id'> {
   id: number;
 }
 

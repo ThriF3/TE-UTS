@@ -3,8 +3,11 @@ import { sendSuccess, sendError } from '../utils/response.js';
 import { TransactionService } from '../services/transactionService.js';
 import { TransactionItemService } from '../services/transactionItemService.js';
 import { PaymentService } from '../services/paymentService.js';
+import { StockService } from '../services/stockService.js';
 import { AuthenticatedRequest } from '../middleware/auth.js';
 import { CreateTransactionItemInput, CreatePaymentInput } from '../types/index.js';
+import { snap, coreApi } from '../config/midtrans.js';
+import crypto from 'crypto';
 
 // ─── Shape coming from POSPage ────────────────────────────────────────────────
 //  "customer_id": 1,
@@ -87,7 +90,7 @@ export class TransactionController {
         tax_pct: parseFloat(tax_pct) || 0,
         tax_amt: parseFloat(tax_amt) || 0,
         total_amount: parseFloat(total_amount),
-        status: status || 'completed',
+        status: payment.method === 'cash' ? (status || 'completed') : 'open',
       });
 
       const transactionId = transaction.id;
@@ -107,6 +110,13 @@ export class TransactionController {
       }));
 
       const transactionItems = await TransactionItemService.createItems(itemInputs);
+
+      // ── Deduct Stock ─────────────────────────────────────────────────────────
+      for (const item of itemInputs) {
+        if (item.stock_item_id) {
+          await StockService.updateStockQuantity(item.stock_item_id, -item.quantity);
+        }
+      }
 
       // ── 3. Insert payment record ─────────────────────────────────────────────
       const cashReceived =
@@ -133,7 +143,37 @@ export class TransactionController {
         notes: payment.notes ?? undefined,
       };
 
+      // Set digital/card payment status to pending initially
+      if (payment.method !== 'cash') {
+        paymentInput.status = 'pending';
+      }
+
       const paymentRecord = await PaymentService.createPayment(paymentInput);
+
+      // ── 3.5. Midtrans Integration ──────────────────────────────────────────
+      let snapToken = null;
+      let snapRedirectUrl = null;
+
+      if (payment.method !== 'cash') {
+        const parameter = {
+          transaction_details: {
+            order_id: `TRX-${transaction.no_transaksi}-${Date.now()}`,
+            gross_amount: Math.round(parseFloat(total_amount)),
+          },
+          customer_details: {
+            first_name: `Customer ID: ${customer_id}`,
+          }
+        };
+
+        try {
+          const snapResponse = await snap.createTransaction(parameter);
+          snapToken = snapResponse.token;
+          snapRedirectUrl = snapResponse.redirect_url;
+        } catch (midtransError: any) {
+          console.error('Midtrans Error:', midtransError);
+          return sendError(res, 'Failed to connect to Payment Gateway', 500, midtransError);
+        }
+      }
 
       // ── 4. Return the full transaction payload ───────────────────────────────
       return sendSuccess(
@@ -143,6 +183,8 @@ export class TransactionController {
           ...transaction,
           items: transactionItems,
           payment: paymentRecord,
+          snapToken,
+          snapRedirectUrl
         },
         201
       );
@@ -224,6 +266,73 @@ export class TransactionController {
         500,
         error
       );
+    }
+  }
+
+  // ── Midtrans Webhook ───────────────────────────────────────────────────
+  static async midtransNotification(req: any, res: Response) {
+    try {
+      const notificationJson = req.body;
+      
+      const statusResponse = await (coreApi as any).transaction.notification(notificationJson);
+      
+      const orderId = statusResponse.order_id;
+      const transactionStatus = statusResponse.transaction_status;
+      const fraudStatus = statusResponse.fraud_status;
+
+      // Extract our no_transaksi from Midtrans order_id (Format: TRX-TRX/YYYYMMDD/NNNN-timestamp)
+      // Actually order_id looks like: TRX-TRX/20260517/0001-123456789
+      // Let's parse it safely
+      const parts = orderId.split('-');
+      // If our format is `TRX-${transaction.no_transaksi}-${Date.now()}` and no_transaksi has slashes like TRX/20260517/0001
+      // It becomes TRX-TRX/20260517/0001-1681234567
+      const noTransaksi = parts.slice(1, -1).join('-'); 
+
+      const transaction = await TransactionService.getTransactionByNo(noTransaksi);
+      if (!transaction) {
+        return res.status(404).send('Transaction not found');
+      }
+
+      let paymentStatus = 'pending';
+      let txStatus: 'open' | 'completed' | 'cancelled' | 'refunded' = 'open';
+
+      if (transactionStatus == 'capture') {
+        if (fraudStatus == 'challenge') {
+          paymentStatus = 'pending';
+        } else if (fraudStatus == 'accept') {
+          paymentStatus = 'success';
+          txStatus = 'completed';
+        }
+      } else if (transactionStatus == 'settlement') {
+        paymentStatus = 'success';
+        txStatus = 'completed';
+      } else if (transactionStatus == 'cancel' || transactionStatus == 'deny' || transactionStatus == 'expire') {
+        paymentStatus = 'failed';
+        txStatus = 'cancelled';
+        
+        // Return stock if cancelled
+        if (transaction.status !== 'cancelled') {
+          const items = await TransactionItemService.getItemsByTransactionId(transaction.id);
+          for (const item of items) {
+            if (item.stock_item_id) {
+              await StockService.updateStockQuantity(item.stock_item_id, item.quantity);
+            }
+          }
+        }
+      } else if (transactionStatus == 'pending') {
+        paymentStatus = 'pending';
+      }
+
+      await PaymentService.updatePaymentStatus(transaction.id, paymentStatus, orderId);
+      
+      if (txStatus !== 'open') {
+        await TransactionService.updateTransactionStatus(transaction.id, txStatus);
+      }
+
+      return res.status(200).send('OK');
+    } catch (error) {
+      console.error('Midtrans Notification Error:', error);
+      return res.status(500).send('Internal Server Error');
     }
   }
 }

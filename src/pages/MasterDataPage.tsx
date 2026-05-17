@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { formatCurrency, extractList } from '../utils/helpers';
-import { Plus, Edit2, Trash2, Search, Package, Building, Users, Loader, X } from 'lucide-react';
-import { useStockItems, useCreateStockItem, useUpdateStockItem } from '../hooks/useStock';
+import { Plus, Edit2, Trash2, Search, Package, Building, Users, Loader, X, PackagePlus } from 'lucide-react';
+import { useStockItems, useCreateStockItem, useUpdateStockItem, useUpdateStockQuantity } from '../hooks/useStock';
 import { useCourts, useCreateCourt, useUpdateCourt, useDeleteCourt } from '../hooks/useCourts';
 import { mockUsers } from '../utils/mockData';
 import { User } from '../types';
@@ -38,6 +38,11 @@ function StockMaster() {
   const { data: stockData, loading, mutate: refetch } = useStockItems(100, 0);
   const createMutation = useCreateStockItem();
   const updateMutation = useUpdateStockItem();
+  const restockMutation = useUpdateStockQuantity();
+
+  const [showRestockModal, setShowRestockModal] = useState(false);
+  const [restockQty, setRestockQty] = useState<number | ''>('');
+  const [restockSubmitting, setRestockSubmitting] = useState(false);
 
   const items = extractList(stockData);
   const filtered = items.filter((i: any) => i.name.toLowerCase().includes(search.toLowerCase()) || i.sku.toLowerCase().includes(search.toLowerCase()) || (i.category || '').toLowerCase().includes(search.toLowerCase()));
@@ -53,6 +58,12 @@ function StockMaster() {
     setEditItem(i);
     setForm({ name: i.name, sku: i.sku, category: i.category || '', stock_qty: i.stock_qty, unit: i.unit, buy_price: i.buy_price, sell_price: i.sell_price, min_stock: i.min_stock || 5, description: i.description || '' });
     setShowModal(true);
+  };
+
+  const openRestock = (i: any) => {
+    setEditItem(i);
+    setRestockQty('');
+    setShowRestockModal(true);
   };
 
   const handleSave = async () => {
@@ -72,6 +83,21 @@ function StockMaster() {
       alert(`Gagal: ${e.message}`);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleRestock = async () => {
+    if (!restockQty || Number(restockQty) <= 0) { alert('Jumlah stok tidak valid'); return; }
+    setRestockSubmitting(true);
+    try {
+      await restockMutation.mutate({ id: editItem.id, quantity: Number(restockQty) });
+      alert('Stok berhasil ditambahkan');
+      refetch();
+      setShowRestockModal(false);
+    } catch (e: any) {
+      alert(`Gagal: ${e.message}`);
+    } finally {
+      setRestockSubmitting(false);
     }
   };
 
@@ -100,7 +126,8 @@ function StockMaster() {
                 <td style={{ color: '#10b981', fontWeight: 700 }}>{i.buy_price > 0 ? `${((i.sell_price - i.buy_price) / i.buy_price * 100).toFixed(0)}%` : '-'}</td>
                 <td>
                   <div style={{ display: 'flex', gap: 4 }}>
-                    <button className="btn btn-secondary btn-sm" onClick={() => openEdit(i)}><Edit2 size={12} /></button>
+                    <button className="btn btn-primary btn-sm" onClick={() => openRestock(i)} title="Restock"><PackagePlus size={12} /></button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => openEdit(i)} title="Edit"><Edit2 size={12} /></button>
                   </div>
                 </td>
               </tr>
@@ -125,6 +152,35 @@ function StockMaster() {
             <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Batal</button>
               <button className="btn btn-primary" onClick={handleSave} disabled={submitting}>{submitting ? 'Menyimpan...' : 'Simpan'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showRestockModal && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowRestockModal(false)}>
+          <div className="modal" style={{ maxWidth: 400 }}>
+            <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: 15, fontWeight: 700 }}>Restock: {editItem?.name}</div>
+              <button onClick={() => setShowRestockModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={16} /></button>
+            </div>
+            <div style={{ padding: 24 }}>
+              <div style={{ marginBottom: 16, fontSize: 13, color: 'var(--text-muted)' }}>
+                Stok saat ini: <strong>{editItem?.stock_qty} {editItem?.unit}</strong>
+              </div>
+              <div className="form-group">
+                <label>Tambah Stok</label>
+                <input 
+                  type="number" 
+                  value={restockQty} 
+                  onChange={e => setRestockQty(e.target.value ? Number(e.target.value) : '')} 
+                  placeholder="Jumlah restock..."
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => setShowRestockModal(false)}>Batal</button>
+              <button className="btn btn-primary" onClick={handleRestock} disabled={restockSubmitting}>{restockSubmitting ? 'Menyimpan...' : 'Simpan'}</button>
             </div>
           </div>
         </div>

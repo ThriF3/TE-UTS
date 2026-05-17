@@ -120,4 +120,15 @@ export class TransactionService {
       throw error;
     }
   }
+
+  static async updateTransactionStatus(
+    id: bigint,
+    status: 'open' | 'completed' | 'cancelled' | 'refunded'
+  ): Promise<void> {
+    try {
+      await pool.query<any>('UPDATE transactions SET status = ? WHERE id = ?', [status, id]);
+    } catch (error) {
+      throw error;
+    }
+  }
 }

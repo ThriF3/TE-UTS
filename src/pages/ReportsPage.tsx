@@ -52,7 +52,7 @@ export default function ReportsPage() {
 
   // Real transaction data — fetched once at the top level and passed down
   const { data: txData, loading: txLoading } = useTransactions(PAGE_SIZE, 0);
-  const transactions: Transaction[] = txData?.data?.data || [];
+  const transactions: any[] = txData?.data?.data || [];
 
   // Summary figures derived from real data
   const totalRevenue = useMemo(
@@ -199,7 +199,7 @@ function ReportDashboard({ totalRevenue, totalOrders, totalReturns, totalRefund,
 // ── Report Transaksi ──────────────────────────────────────────────────────────
 
 function ReportTransaksi({ transactions, loading }: {
-  transactions: Transaction[];
+  transactions: any[];
   loading: boolean;
 }) {
   const [dateFrom, setDateFrom] = useState('');
@@ -391,7 +391,7 @@ function ReportOrder() {
     filterStatus !== 'all' ? filterStatus : undefined
   );
 
-  const orders: ApiOrder[] = ordersResp?.data?.data ?? [];
+  const orders: any[] = ordersResp?.data?.data ?? [];
   const total: number = ordersResp?.data?.total ?? 0;
 
   const filtered = orders.filter(o => {

@@ -133,7 +133,6 @@ export interface CourtUnit {
   capacity?: number;
   description?: string;
   is_available: boolean;
-  is_deleted?: boolean;
   created_at: Date;
 }
 
@@ -147,7 +146,6 @@ export interface GorLocation {
   email?: string;
   manager_id: bigint;
   is_active: number
-  is_deleted?: boolean;
   created_at: Date;
   updated_at?: Date;
 }
