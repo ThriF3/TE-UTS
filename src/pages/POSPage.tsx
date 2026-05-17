@@ -65,10 +65,12 @@ export default function POSPage() {
   );
 
   const addToCart = (item: any) => {
+    if (item.stock_qty <= 0) return;
     setCart(prev => {
       const sellPrice = Number(item.sell_price);  // ← coerce once, at the boundary
       const existing = prev.find(c => c.stockId === String(item.id));
       if (existing) {
+        if (existing.quantity + 1 > item.stock_qty) return prev;
         return prev.map(c =>
           c.stockId === String(item.id)
             ? { ...c, quantity: c.quantity + 1, subtotal: (c.quantity + 1) * c.unitPrice }
@@ -93,7 +95,9 @@ export default function POSPage() {
     setCart(prev =>
       prev.map(c => {
         if (c.id !== id) return c;
-        const qty = Math.max(0, c.quantity + delta);
+        const stockItem = stockItems.find((s: any) => String(s.id) === c.stockId);
+        const maxStock = stockItem ? stockItem.stock_qty : c.quantity;
+        const qty = Math.max(0, Math.min(c.quantity + delta, maxStock));
         if (qty === 0) return null as any;
         return { ...c, quantity: qty, subtotal: qty * c.unitPrice };
       }).filter(Boolean)
@@ -280,15 +284,48 @@ export default function POSPage() {
         payment: paymentInput,
       };
 
-      const result = await createTxMutation.mutate(payload);
+      const result: any = await createTxMutation.mutate(payload);
 
-      // Merge API result with local cart so Receipt can read itemName
-      setLastTransaction({ ...result, customerName, items: cart });
-      refetchTx();
-      setPaymentModal(false);
-      setReceiptModal(true);
-      clearCart();
-      resetPaymentFields();
+      if (result && result.snapToken) {
+        // Handle Midtrans Snap
+        setPaymentModal(false);
+        window.snap.pay(result.snapToken, {
+          onSuccess: function(midtransResult) {
+            console.log('Payment success:', midtransResult);
+            // In a real app we'd fetch the latest transaction state from backend here.
+            // For immediate UI update, we simulate success state.
+            setLastTransaction({ ...result, status: 'completed', customerName, items: cart });
+            refetchTx();
+            setReceiptModal(true);
+            clearCart();
+            resetPaymentFields();
+          },
+          onPending: function(midtransResult) {
+            console.log('Payment pending:', midtransResult);
+            alert('Menunggu pembayaran diselesaikan oleh pelanggan...');
+            setLastTransaction({ ...result, status: 'open', customerName, items: cart });
+            refetchTx();
+            clearCart();
+            resetPaymentFields();
+          },
+          onError: function(midtransResult) {
+            console.log('Payment error:', midtransResult);
+            alert('Pembayaran gagal: ' + (midtransResult.status_message || 'Terjadi kesalahan'));
+          },
+          onClose: function() {
+            console.log('Payment popup closed');
+            alert('Proses pembayaran dibatalkan oleh pengguna.');
+          }
+        });
+      } else {
+        // Cash payment or fallback
+        setLastTransaction({ ...result, customerName, items: cart });
+        refetchTx();
+        setPaymentModal(false);
+        setReceiptModal(true);
+        clearCart();
+        resetPaymentFields();
+      }
     } catch (e: any) {
       alert(`Gagal: ${e.message}`);
     } finally {
@@ -383,12 +420,16 @@ export default function POSPage() {
                   onClick={() => addToCart(item)}
                   style={{
                     background: 'var(--bg-card)', border: '1px solid var(--border)',
-                    borderRadius: 10, padding: 14, cursor: 'pointer',
+                    borderRadius: 10, padding: 14, 
+                    cursor: item.stock_qty <= 0 ? 'not-allowed' : 'pointer',
+                    opacity: item.stock_qty <= 0 ? 0.6 : 1,
                     transition: 'all 0.15s', position: 'relative',
                   }}
                   onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = 'var(--accent)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    if (item.stock_qty > 0) {
+                      e.currentTarget.style.borderColor = 'var(--accent)';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }
                   }}
                   onMouseLeave={e => {
                     e.currentTarget.style.borderColor = 'var(--border)';
@@ -406,11 +447,15 @@ export default function POSPage() {
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>{item.sku} · Stok: {item.stock_qty}</div>
                   <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--accent)' }}>{formatCurrency(item.sell_price)}</div>
                   <div style={{ position: 'absolute', top: 8, right: 8 }}>
-                    <span style={{
-                      fontSize: 10, padding: '2px 6px', borderRadius: 10,
-                      background: `${categoryColors[item.category] || '#3b82f6'}20`,
-                      color: categoryColors[item.category] || '#3b82f6', fontWeight: 600,
-                    }}>{item.category}</span>
+                    {item.stock_qty <= 0 ? (
+                      <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 10, background: '#fee2e2', color: '#ef4444', fontWeight: 700 }}>Habis</span>
+                    ) : (
+                      <span style={{
+                        fontSize: 10, padding: '2px 6px', borderRadius: 10,
+                        background: `${categoryColors[item.category] || '#3b82f6'}20`,
+                        color: categoryColors[item.category] || '#3b82f6', fontWeight: 600,
+                      }}>{item.category}</span>
+                    )}
                   </div>
                   <div style={{ position: 'absolute', bottom: 8, right: 10, fontSize: 20, color: 'var(--accent)', fontWeight: 800 }}>+</div>
                 </div>

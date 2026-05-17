@@ -120,9 +120,8 @@ export class ReturnService {
 
   static async completeReturn(returnId: bigint, completedBy: bigint): Promise<Return> {
     try {
-      await pool.query('UPDATE returns SET status = ?, completed_by = ? WHERE id = ?', [
+      await pool.query('UPDATE returns SET status = ? WHERE id = ?', [
         'completed',
-        completedBy,
         returnId,
       ]);
 
@@ -139,9 +138,8 @@ export class ReturnService {
 
   static async rejectReturn(returnId: bigint, rejectedBy: bigint): Promise<Return> {
     try {
-      await pool.query('UPDATE returns SET status = ?, rejected_by = ? WHERE id = ?', [
+      await pool.query('UPDATE returns SET status = ? WHERE id = ?', [
         'rejected',
-        rejectedBy,
         returnId,
       ]);
 

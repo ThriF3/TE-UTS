@@ -28,8 +28,8 @@ export class GorLocationService {
         try {
             const [result] = await pool.query<any>(
                 `INSERT INTO gor_locations 
-             (name, address, city, province, phone, email, manager_id, created_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+             (name, address, city, province, phone, email, manager_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [
                     name,
                     address,

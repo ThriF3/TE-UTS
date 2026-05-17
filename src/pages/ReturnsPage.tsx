@@ -74,20 +74,20 @@ export default function ReturnsPage() {
     }
   };
 
-  const set = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }));
+  const set = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
 
   const addItem = () => {
     if (!newItem.itemName) return;
     const sub = newItem.quantity * newItem.unitPrice;
     const item: ReturnItem = { id: generateId(), returnId: '', ...newItem, subtotal: sub };
     const items = [...(form.items || []), item];
-    setForm(p => ({ ...p, items, totalRefund: items.reduce((s, i) => s + i.subtotal, 0) }));
+    setForm((p: any) => ({ ...p, items, totalRefund: items.reduce((s, i) => s + i.subtotal, 0) }));
     setNewItem({ itemName: '', quantity: 1, unitPrice: 0, reason: '' });
   };
 
   const removeItem = (id: string) => {
     const items = (form.items || []).filter((i: ReturnItem) => i.id !== id);
-    setForm(p => ({ ...p, items, totalRefund: items.reduce((s: number, i: ReturnItem) => s + i.subtotal, 0) }));
+    setForm((p: any) => ({ ...p, items, totalRefund: items.reduce((s: number, i: ReturnItem) => s + i.subtotal, 0) }));
   };
 
   const handleSave = async () => {

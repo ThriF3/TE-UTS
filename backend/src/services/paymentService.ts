@@ -46,4 +46,26 @@ export class PaymentService {
         );
         return rows as Payment[];
     }
+
+    /**
+     * Update payment status and reference
+     */
+    static async updatePaymentStatus(
+        transactionId: bigint,
+        status: string,
+        referenceNo?: string
+    ): Promise<void> {
+        let query = 'UPDATE payments SET status = ?';
+        const params: any[] = [status];
+
+        if (referenceNo) {
+            query += ', reference_no = ?';
+            params.push(referenceNo);
+        }
+
+        query += ' WHERE transaction_id = ?';
+        params.push(transactionId);
+
+        await pool.execute(query, params);
+    }
 }
