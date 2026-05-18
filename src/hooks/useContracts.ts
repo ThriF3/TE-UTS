@@ -1,4 +1,5 @@
 import { contractService } from '../services/contractService';
+import { Contract } from '../types';
 import { useAsync, useMutation } from './useAsync';
 
 export function useContracts(limit: number = 10, offset: number = 0, status?: string) {
@@ -16,7 +17,7 @@ export function useContract(id: number | string | null) {
 }
 
 export function useCreateContract() {
-  return useMutation((data) => contractService.createContract(data).then(res => {
+  return useMutation((data: Partial<Contract>) => contractService.createContract(data).then(res => {
     if (!res.success) throw new Error(res.message);
     return res.data;
   }));

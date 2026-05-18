@@ -32,4 +32,18 @@ router.post(
   asyncHandler((req, res) => ReturnController.approveReturn(req as any, res))
 );
 
+// Complete return
+router.post(
+  '/:id/complete',
+  authorize('admin', 'finance'),
+  asyncHandler((req, res) => ReturnController.completeReturn(req as any, res))
+);
+
+// Reject return
+router.post(
+  '/:id/reject',
+  authorize('admin', 'finance'),
+  asyncHandler((req, res) => ReturnController.rejectReturn(req as any, res))
+);
+
 export default router;

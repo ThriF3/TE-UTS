@@ -1,4 +1,4 @@
-import { orderService } from '../services/orderService';
+import { Order, orderService } from '../services/orderService';
 import { useAsync, useMutation } from './useAsync';
 
 export function useOrders(limit: number = 10, offset: number = 0, customerId?: number, status?: string) {
@@ -16,7 +16,7 @@ export function useOrder(id: number | string | null) {
 }
 
 export function useCreateOrder() {
-  return useMutation((data) =>
+  return useMutation((data: Order) =>
     orderService.createOrder(data).then(res => {
       if (!res.success) throw new Error(res.message);
       return res.data;

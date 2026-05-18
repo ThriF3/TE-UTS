@@ -95,6 +95,7 @@ export interface Return {
   reason: string;
   status: 'draft' | 'pending' | 'approved' | 'rejected' | 'completed';
   approved_by?: bigint;
+  created_by: bigint;
   created_at: Date;
   updated_at: Date;
 }
@@ -116,14 +117,88 @@ export interface StockItem {
   updated_at: Date;
 }
 
+// backend/src/types/index.ts
 export interface CourtUnit {
   id: number;
   gor_location_id: number;
   name: string;
-  court_type: 'badminton' | 'futsal' | 'basket' | 'voli' | 'tenis' | 'serbaguna';
+  court_type:
+  | 'badminton'
+  | 'futsal'
+  | 'basket'
+  | 'voli'
+  | 'tenis'
+  | 'serbaguna';
   price_per_hour: number;
   capacity?: number;
   description?: string;
   is_available: boolean;
   created_at: Date;
+}
+
+export interface GorLocation {
+  id: number;
+  name: string;
+  address: string;
+  city?: string;
+  province?: string;
+  phone?: string;
+  email?: string;
+  manager_id: bigint;
+  is_active: number
+  created_at: Date;
+  updated_at?: Date;
+}
+
+export interface TransactionItem {
+  id: bigint;
+  transaction_id: bigint;
+  stock_item_id?: bigint;
+  item_name: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  discount_pct: number;
+  subtotal: number;
+}
+
+export interface CreateTransactionItemInput {
+  transaction_id: bigint;
+  stock_item_id?: bigint;
+  item_name: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  discount_pct?: number;
+  subtotal: number;
+}
+
+export interface Payment {
+  id: bigint;
+  transaction_id: bigint;
+  payment_method: 'cash' | 'debit' | 'credit' | 'digital';
+  amount: number;
+  cash_received?: number;
+  cash_change?: number;
+  card_number?: string;
+  card_bank?: string;
+  digital_provider?: string;
+  reference_no?: string;
+  status: 'pending' | 'success' | 'failed' | 'refunded';
+  processed_at: Date;
+  notes?: string;
+}
+
+export interface CreatePaymentInput {
+  transaction_id: bigint;
+  payment_method: 'cash' | 'debit' | 'credit' | 'digital';
+  amount: number;
+  cash_received?: number;
+  cash_change?: number;
+  card_number?: string;
+  card_bank?: string;
+  digital_provider?: string;
+  reference_no?: string;
+  status?: 'pending' | 'success' | 'failed' | 'refunded';
+  notes?: string;
 }

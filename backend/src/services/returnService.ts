@@ -12,8 +12,8 @@ export class ReturnService {
     try {
       const [result] = await pool.query<any>(
         `INSERT INTO returns 
-         (no_retur, return_type, transaction_id, contract_id, customer_id, total_refund, refund_type, refund_method, reason, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (no_retur, return_type, transaction_id, contract_id, customer_id, total_refund, refund_type, refund_method, reason, status, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           no_retur,
           data.return_type,
@@ -25,6 +25,7 @@ export class ReturnService {
           data.refund_method || 'cash',
           data.reason,
           'pending',
+          data.created_by,
         ]
       );
 
@@ -112,6 +113,42 @@ export class ReturnService {
     try {
       const [rows] = await pool.query<any[]>('SELECT COUNT(*) as count FROM returns');
       return rows[0]?.count || 0;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async completeReturn(returnId: bigint, completedBy: bigint): Promise<Return> {
+    try {
+      await pool.query('UPDATE returns SET status = ? WHERE id = ?', [
+        'completed',
+        returnId,
+      ]);
+
+      const returnData = await this.getReturnById(returnId);
+      if (!returnData) {
+        throw new NotFoundError('Return not found');
+      }
+
+      return returnData;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async rejectReturn(returnId: bigint, rejectedBy: bigint): Promise<Return> {
+    try {
+      await pool.query('UPDATE returns SET status = ? WHERE id = ?', [
+        'rejected',
+        returnId,
+      ]);
+
+      const returnData = await this.getReturnById(returnId);
+      if (!returnData) {
+        throw new NotFoundError('Return not found');
+      }
+
+      return returnData;
     } catch (error) {
       throw error;
     }

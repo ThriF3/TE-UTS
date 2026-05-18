@@ -23,10 +23,13 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    await new Promise(r => setTimeout(r, 600));
-    const ok = login(email, password);
-    if (ok) navigate('/dashboard');
-    else setError('Email atau password salah.');
+    
+    const ok = await login(email, password);
+    if (ok) {
+      navigate('/dashboard');
+    } else {
+      setError('Email atau password salah.');
+    }
     setLoading(false);
   };
 
@@ -40,7 +43,7 @@ export default function LoginPage() {
       
       {/* Left panel */}
       <div style={{
-        flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center',
+        flex: 1, flexDirection: 'column', justifyContent: 'center',
         padding: '60px 80px', display: 'none'
       }} className="left-panel">
       </div>

@@ -29,16 +29,19 @@ import orderRoutes from './routes/orders.js';
 import transactionRoutes from './routes/transactions.js';
 import returnRoutes from './routes/returns.js';
 import stockRoutes from './routes/stock.js';
+import courtRoutes from './routes/courts.js';
+import gorLocationRoutes from './routes/gorLocations.js';
 
 app.use('/api/contracts', contractRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/returns', returnRoutes);
 app.use('/api/stock', stockRoutes);
+app.use('/api/courts', courtRoutes);
+app.use('/api/gor-locations', gorLocationRoutes);
 
 // TODO: Add remaining routes
 // app.use('/api/reports', reportRoutes);
-// app.use('/api/courts', courtRoutes);
 // app.use('/api/users', userRoutes);
 
 // 404 handler

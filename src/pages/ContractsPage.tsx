@@ -1,35 +1,46 @@
-import { useState } from 'react';
-import { mockContracts } from '../utils/mockData';
-import { Contract, ContractStatus } from '../types';
-import { formatCurrency, formatDate, getContractStatusBadge, statusLabel, generateNoPKS } from '../utils/helpers';
-import { Plus, Search, Eye, Edit2, FileText, X, CheckCircle, XCircle } from 'lucide-react';
+// Example: Updated ContractsPage with Backend API Integration
 
-const emptyContract: Omit<Contract, 'id' | 'createdAt' | 'createdBy'> = {
-  noPKS: '', title: '', partyFirst: 'GOR Maju Jaya', partySecond: '', partyThird: '',
-  objectContract: '', quantity: 1, unit: 'Unit', price: 0, paymentType: 'cash',
-  topDays: 30, returnPolicy: '', startDate: '', endDate: '', status: 'draft', fileUrl: ''
+import { useState } from 'react';
+import { useContracts, useCreateContract, useUpdateContract, useApproveContract } from '../hooks/useContracts';
+import { Contract, ContractStatus } from '../types';
+import { formatCurrency, formatDate, getContractStatusBadge, statusLabel, generateNoPKS, exportContractPdf, formatValue } from '../utils/helpers';
+import { Plus, Search, Eye, Edit2, FileText, X, CheckCircle, XCircle, Loader } from 'lucide-react';
+
+const emptyContract: any = {
+  no_pks: '', title: '', party_first: 'GOR Maju Jaya', party_second: '', party_third: '',
+  object_contract: '', quantity: 1, unit: 'Unit', price: 0, payment_type: 'cash',
+  top_days: 30, return_policy: '', start_date: '', end_date: '', status: 'draft', file_url: ''
 };
 
 export default function ContractsPage() {
-  const [contracts, setContracts] = useState<Contract[]>(mockContracts);
+  // API Hooks
+  const { data: contractsData, loading, error, mutate: refetch } = useContracts(100, 0);
+  const createMutation = useCreateContract();
+  const updateMutation = useUpdateContract();
+  const approveMutation = useApproveContract();
+
+  // Local State
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showModal, setShowModal] = useState(false);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [viewMode, setViewMode] = useState(false);
   const [form, setForm] = useState(emptyContract);
+  const [submitting, setSubmitting] = useState(false);
+
+  const contracts = contractsData?.data?.data || [];
 
   const filtered = contracts.filter(c => {
-    const matchSearch = c.noPKS.toLowerCase().includes(search.toLowerCase()) ||
+    const matchSearch = String(c.no_pks).toLowerCase().includes(search.toLowerCase()) ||
       c.title.toLowerCase().includes(search.toLowerCase()) ||
-      c.partySecond.toLowerCase().includes(search.toLowerCase());
+      c.party_second.toLowerCase().includes(search.toLowerCase());
     const matchStatus = filterStatus === 'all' || c.status === filterStatus;
     return matchSearch && matchStatus;
   });
 
   const openCreate = () => {
     setSelectedContract(null);
-    setForm({ ...emptyContract, noPKS: generateNoPKS(contracts.length + 1) });
+    setForm({ ...emptyContract, no_pks: generateNoPKS(contracts.length + 1) });
     setViewMode(false);
     setShowModal(true);
   };
@@ -42,31 +53,103 @@ export default function ContractsPage() {
 
   const openEdit = (c: Contract) => {
     setSelectedContract(c);
-    setForm({ noPKS: c.noPKS, title: c.title, partyFirst: c.partyFirst, partySecond: c.partySecond, partyThird: c.partyThird || '', objectContract: c.objectContract, quantity: c.quantity, unit: c.unit, price: c.price, paymentType: c.paymentType, topDays: c.topDays, returnPolicy: c.returnPolicy, startDate: c.startDate, endDate: c.endDate, status: c.status, fileUrl: c.fileUrl || '' });
+    setForm({
+      no_pks: c.no_pks,
+      title: c.title,
+      party_first: c.party_first,
+      party_second: c.party_second,
+      party_third: c.party_third || '',
+      object_contract: c.object_contract,
+      quantity: c.quantity,
+      unit: c.unit,
+      price: c.price,
+      payment_type: c.payment_type,
+      top_days: c.top_days,
+      return_policy: c.return_policy,
+      start_date: c.start_date,
+      end_date: c.end_date,
+      status: c.status,
+      file_url: c.file_url || ''
+    });
     setViewMode(false);
     setShowModal(true);
   };
 
-  const handleSave = () => {
-    if (!form.title || !form.partySecond || !form.objectContract || !form.startDate || !form.endDate) {
+  const handleExportSelected = () => {
+    if (!selectedContract) return;
+
+    const safeName = `PKS-${selectedContract.no_pks || selectedContract.id
+      .toString()
+      .replace(/[^\w.-]+/g, "_")}.pdf`;
+
+    exportContractPdf(selectedContract as any);
+  };
+
+  const handleSave = async () => {
+    if (!form.title || !form.party_second || !form.object_contract || !form.start_date || !form.end_date) {
       alert('Harap lengkapi semua field yang wajib diisi.');
       return;
     }
-    if (selectedContract) {
-      setContracts(prev => prev.map(c => c.id === selectedContract.id ? { ...c, ...form } : c));
-    } else {
-      const newContract: Contract = { ...form, id: `c${Date.now()}`, createdAt: new Date().toISOString(), createdBy: 'u1' };
-      setContracts(prev => [...prev, newContract]);
+
+    try {
+      setSubmitting(true);
+      if (selectedContract) {
+        // Update existing contract
+        await updateMutation.mutate({
+          id: selectedContract.id as any,
+          data: form
+        });
+        alert('Kontrak berhasil diperbarui');
+      } else {
+        // Create new contract
+        await createMutation.mutate(form);
+        alert('Kontrak berhasil dibuat');
+      }
+      setShowModal(false);
+      // Refresh the contract list
+      refetch();
+    } catch (error) {
+      alert(`Error: ${(error as any).message}`);
+    } finally {
+      setSubmitting(false);
     }
-    setShowModal(false);
   };
 
-  const handleStatusChange = (id: string, newStatus: ContractStatus) => {
-    setContracts(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
-    if (selectedContract?.id === id) setSelectedContract(prev => prev ? { ...prev, status: newStatus } : null);
+  const handleStatusChange = async (id: number, newStatus: ContractStatus) => {
+    if (newStatus === 'active') {
+      // Use approve endpoint for activating contracts
+      try {
+        await approveMutation.mutate(id);
+        refetch();
+      } catch (error) {
+        alert(`Error: ${(error as any).message}`);
+      }
+    } else {
+      // For other status updates, use update endpoint
+      const contract = contracts.find(c => c.id === id);
+      if (contract) {
+        try {
+          await updateMutation.mutate({
+            id,
+            data: { ...contract, status: newStatus }
+          });
+          refetch();
+        } catch (error) {
+          alert(`Error: ${(error as any).message}`);
+        }
+      }
+    }
   };
 
   const statusOptions: ContractStatus[] = ['draft', 'review', 'active', 'expired', 'completed', 'renewed', 'terminated'];
+
+  if (loading) {
+    return <div style={{ padding: 40, textAlign: 'center' }}><Loader size={24} className="animate-spin" /></div>;
+  }
+
+  if (error) {
+    return <div style={{ padding: 40, color: '#ef4444' }}>Error loading contracts: {error}</div>;
+  }
 
   return (
     <div>
@@ -75,7 +158,7 @@ export default function ContractsPage() {
           <div className="page-title">Kontrak Elektronik (PKS)</div>
           <div className="page-subtitle">Perjanjian Kerja Sama antara pihak-pihak terkait GOR</div>
         </div>
-        <button className="btn btn-primary" onClick={openCreate}><Plus size={15} /> Buat PKS</button>
+        <button className="btn btn-primary" onClick={openCreate} disabled={submitting}><Plus size={15} /> Buat PKS</button>
       </div>
 
       {/* Filters */}
@@ -94,106 +177,308 @@ export default function ContractsPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginBottom: 20 }}>
         {['active', 'review', 'expired', 'completed'].map(st => (
           <div key={st} className="card" style={{ padding: '12px 16px', cursor: 'pointer' }} onClick={() => setFilterStatus(st === filterStatus ? 'all' : st)}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}>{contracts.filter(c => c.status === st).length}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}>
+              {contracts.filter(c => c.status === st as ContractStatus).length}
+            </div>
             <span className={`badge ${getContractStatusBadge(st)}`}>{statusLabel(st)}</span>
           </div>
         ))}
       </div>
 
-      {/* Table */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div className="table-container">
-          <table>
+      {/* Contracts Table */}
+      <div className="card" style={{ overflowX: 'auto' }}>
+        {filtered.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+            Tidak ada kontrak ditemukan
+          </div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr>
-                <th>No. PKS</th>
-                <th>Judul</th>
-                <th>Pihak Kedua</th>
-                <th>Objek</th>
-                <th>Harga</th>
-                <th>Bayar</th>
-                <th>Masa Berlaku</th>
-                <th>Status</th>
-                <th>Aksi</th>
+              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 600 }}>No. PKS</th>
+                <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 600 }}>Judul</th>
+                <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 600 }}>Pihak Kedua</th>
+                <th style={{ textAlign: 'right', padding: '12px 16px', fontWeight: 600 }}>Nilai</th>
+                <th style={{ textAlign: 'center', padding: '12px 16px', fontWeight: 600 }}>Status</th>
+                <th style={{ textAlign: 'center', padding: '12px 16px', fontWeight: 600 }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && (
-                <tr><td colSpan={9} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>Tidak ada data kontrak</td></tr>
-              )}
               {filtered.map(c => (
-                <tr key={c.id}>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)' }}>{c.noPKS}</td>
-                  <td style={{ color: 'var(--text-primary)', fontWeight: 500, maxWidth: 180 }}>
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</div>
+                <tr key={c.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                  <td style={{ padding: '12px 16px' }}><strong>{c.no_pks}</strong></td>
+                  <td style={{ padding: '12px 16px' }}>{c.title}</td>
+                  <td style={{ padding: '12px 16px' }}>{c.party_second}</td>
+                  <td style={{ textAlign: 'right', padding: '12px 16px' }}>{formatCurrency(c.price)}</td>
+                  <td style={{ textAlign: 'center', padding: '12px 16px' }}>
+                    <select
+                      value={c.status}
+                      onChange={e => handleStatusChange(c.id, e.target.value as ContractStatus)}
+                      style={{ padding: '4px 8px', borderRadius: 4 }}
+                      className={`badge ${getContractStatusBadge(c.status)}`}
+                    >
+                      {statusOptions.map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
+                    </select>
                   </td>
-                  <td>{c.partySecond}</td>
-                  <td style={{ maxWidth: 160 }}>
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.objectContract}</div>
-                  </td>
-                  <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{formatCurrency(c.price)}</td>
-                  <td><span className={`badge ${c.paymentType === 'cash' ? 'badge-green' : 'badge-orange'}`}>{c.paymentType === 'cash' ? 'Tunai' : `TOP ${c.topDays}hr`}</span></td>
-                  <td style={{ fontSize: 12 }}>
-                    <div>{formatDate(c.startDate)}</div>
-                    <div style={{ color: 'var(--text-muted)' }}>s/d {formatDate(c.endDate)}</div>
-                  </td>
-                  <td><span className={`badge ${getContractStatusBadge(c.status)}`}>{statusLabel(c.status)}</span></td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <button className="btn btn-secondary btn-sm" onClick={() => openView(c)} title="Lihat Detail"><Eye size={13} /></button>
-                      <button className="btn btn-secondary btn-sm" onClick={() => openEdit(c)} title="Edit"><Edit2 size={13} /></button>
+                  <td style={{ textAlign: 'center', padding: '12px 16px' }}>
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                      <button onClick={() => openView(c as any)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }} title="Lihat">
+                        <Eye size={16} color="var(--text-muted)" />
+                      </button>
+                      <button onClick={() => openEdit(c as any)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }} title="Edit">
+                        <Edit2 size={16} color="var(--text-muted)" />
+                      </button>
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        )}
       </div>
 
       {/* Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
-          <div className="modal" style={{ maxWidth: 700 }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 700 }}>{viewMode ? 'Detail Kontrak PKS' : selectedContract ? 'Edit Kontrak' : 'Buat Kontrak PKS Baru'}</div>
-                {viewMode && selectedContract && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{selectedContract.noPKS}</div>}
-              </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 999,
+            padding: 16,
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              width: "100%",
+              maxWidth: 800,
+              maxHeight: "90vh",
+              overflowY: "auto",
+              padding: 24,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 20,
+                gap: 12,
+              }}
+            >
+              <h2 style={{ margin: 0 }}>
+                {viewMode ? "Lihat" : selectedContract ? "Edit" : "Buat"} PKS
+              </h2>
+
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 {viewMode && selectedContract && (
-                  <>
-                    {selectedContract.status === 'review' && (
-                      <>
-                        <button className="btn btn-success btn-sm" onClick={() => handleStatusChange(selectedContract.id, 'active')}><CheckCircle size={13} /> Setujui</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleStatusChange(selectedContract.id, 'terminated')}><XCircle size={13} /> Tolak</button>
-                      </>
-                    )}
-                    {selectedContract.status === 'draft' && (
-                      <button className="btn btn-secondary btn-sm" onClick={() => handleStatusChange(selectedContract.id, 'review')}>Ajukan Review</button>
-                    )}
-                    {selectedContract.status === 'active' && (
-                      <button className="btn btn-secondary btn-sm" onClick={() => handleStatusChange(selectedContract.id, 'completed')}>Tandai Selesai</button>
-                    )}
-                    <button className="btn btn-secondary btn-sm" onClick={() => openEdit(selectedContract)}><Edit2 size={13} /> Edit</button>
-                  </>
+                  <button
+                    onClick={handleExportSelected}
+                    className="btn btn-outline"
+                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+                  >
+                    Export PDF
+                  </button>
                 )}
-                <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}><X size={18} /></button>
+
+                <button
+                  onClick={() => setShowModal(false)}
+                  style={{ background: "none", border: "none", cursor: "pointer" }}
+                >
+                  <X size={20} />
+                </button>
               </div>
             </div>
 
-            <div style={{ padding: 24, maxHeight: '70vh', overflowY: 'auto' }}>
-              {viewMode && selectedContract ? (
-                <ContractDetail contract={selectedContract} />
-              ) : (
-                <ContractForm form={form} setForm={setForm} />
-              )}
-            </div>
+            {viewMode && selectedContract ? (
+              <div style={{ display: "grid", gap: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <ReadOnlyField label="No. PKS" value={selectedContract.no_pks} />
+                  <ReadOnlyField label="Status" value={selectedContract.status} />
+                </div>
 
-            {!viewMode && (
-              <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Batal</button>
-                <button className="btn btn-primary" onClick={handleSave}><FileText size={14} /> {selectedContract ? 'Simpan Perubahan' : 'Buat Kontrak'}</button>
+                <ReadOnlyField label="Judul" value={selectedContract.title} />
+                <ReadOnlyField label="Pihak Pertama (GOR)" value={selectedContract.party_first} />
+                <ReadOnlyField label="Pihak Kedua" value={selectedContract.party_second} />
+                <ReadOnlyField label="Pihak Ketiga" value={selectedContract.party_third} />
+                <ReadOnlyField label="Objek Kontrak" value={selectedContract.object_contract} />
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <ReadOnlyField label="Kuantitas" value={selectedContract.quantity} />
+                  <ReadOnlyField label="Unit" value={selectedContract.unit} />
+                </div>
+
+                <ReadOnlyField label="Harga" value={selectedContract.price} />
+                <ReadOnlyField label="Tipe Pembayaran" value={selectedContract.payment_type} />
+                <ReadOnlyField label="Hari Tempo" value={selectedContract.top_days} />
+                <ReadOnlyField label="Tanggal Mulai" value={selectedContract.start_date} />
+                <ReadOnlyField label="Tanggal Akhir" value={selectedContract.end_date} />
+                <ReadOnlyField label="Kebijakan Retur" value={selectedContract.return_policy} />
+                <ReadOnlyField label="Catatan" value={selectedContract.notes} />
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <ReadOnlyField label="Dibuat Oleh" value={selectedContract.created_by} />
+                  <ReadOnlyField label="Diperbarui" value={selectedContract.updated_at} />
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                  <button onClick={() => setShowModal(false)} className="btn btn-outline">
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 16 }}>
+                <div className="form-group">
+                  <label>No. PKS</label>
+                  <input type="text" value={form.no_pks} disabled style={{ background: "var(--bg-secondary)" }} />
+                </div>
+
+                <div className="form-group">
+                  <label>Judul *</label>
+                  <input
+                    type="text"
+                    value={form.title}
+                    onChange={(e) => setForm((p: any) => ({ ...p, title: e.target.value }))}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Pihak Pertama (GOR)</label>
+                  <input
+                    type="text"
+                    value={form.party_first}
+                    onChange={(e) => setForm((p: any) => ({ ...p, party_first: e.target.value }))}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Pihak Kedua *</label>
+                  <input
+                    type="text"
+                    value={form.party_second}
+                    onChange={(e) => setForm((p: any) => ({ ...p, party_second: e.target.value }))}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Pihak Ketiga</label>
+                  <input
+                    type="text"
+                    value={form.party_third ?? ""}
+                    onChange={(e) => setForm((p: any) => ({ ...p, party_third: e.target.value }))}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Objek Kontrak *</label>
+                  <textarea
+                    value={form.object_contract}
+                    onChange={(e) => setForm((p: any) => ({ ...p, object_contract: e.target.value }))}
+                    rows={3}
+                  />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div className="form-group">
+                    <label>Kuantitas</label>
+                    <input
+                      type="number"
+                      value={form.quantity}
+                      onChange={(e) =>
+                        setForm((p: any) => ({ ...p, quantity: Number(e.target.value) }))
+                      }
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Unit</label>
+                    <input
+                      type="text"
+                      value={form.unit}
+                      onChange={(e) => setForm((p: any) => ({ ...p, unit: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Harga</label>
+                  <input
+                    type="number"
+                    value={form.price}
+                    onChange={(e) => setForm((p: any) => ({ ...p, price: Number(e.target.value) }))}
+                  />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div className="form-group">
+                    <label>Tipe Pembayaran</label>
+                    <select
+                      value={form.payment_type}
+                      onChange={(e) =>
+                        setForm((p: any) => ({ ...p, payment_type: e.target.value as "cash" | "TOP" }))
+                      }
+                    >
+                      <option value="cash">Tunai</option>
+                      <option value="TOP">Tempo/TOP</option>
+                    </select>
+                  </div>
+
+                  {form.payment_type === "TOP" && (
+                    <div className="form-group">
+                      <label>Hari Tempo</label>
+                      <input
+                        type="number"
+                        value={form.top_days ?? ""}
+                        onChange={(e) =>
+                          setForm((p: any) => ({ ...p, top_days: Number(e.target.value) }))
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div className="form-group">
+                    <label>Tanggal Mulai *</label>
+                    <input
+                      type="date"
+                      value={form.start_date}
+                      onChange={(e) => setForm((p: any) => ({ ...p, start_date: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Tanggal Akhir *</label>
+                    <input
+                      type="date"
+                      value={form.end_date}
+                      onChange={(e) => setForm((p: any) => ({ ...p, end_date: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Kebijakan Retur</label>
+                  <textarea
+                    value={form.return_policy ?? ""}
+                    onChange={(e) => setForm((p: any) => ({ ...p, return_policy: e.target.value }))}
+                    rows={2}
+                  />
+                </div>
+
+                <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 20 }}>
+                  <button onClick={() => setShowModal(false)} className="btn btn-outline">
+                    Batal
+                  </button>
+                  <button onClick={handleSave} className="btn btn-primary" disabled={submitting}>
+                    {submitting ? "Menyimpan..." : "Simpan"}
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -203,129 +488,65 @@ export default function ContractsPage() {
   );
 }
 
-function ContractDetail({ contract: c }: { contract: Contract }) {
-  const Field = ({ label, value, mono }: { label: string; value: string; mono?: boolean }) => (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 13, color: 'var(--text-primary)', fontFamily: mono ? 'var(--font-mono)' : undefined }}>{value || '-'}</div>
-    </div>
-  );
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        <span className={`badge ${getContractStatusBadge(c.status)}`}>{statusLabel(c.status)}</span>
-        <span className={`badge ${c.paymentType === 'cash' ? 'badge-green' : 'badge-orange'}`}>{c.paymentType === 'cash' ? 'Tunai' : `Tempo (TOP) ${c.topDays} Hari`}</span>
-      </div>
-      <div className="form-row">
-        <Field label="Nomor PKS" value={c.noPKS} mono />
-        <Field label="Tanggal Dibuat" value={formatDate(c.createdAt)} />
-      </div>
-      <Field label="Judul Kontrak" value={c.title} />
-      <div className="form-row">
-        <Field label="Pihak Pertama (Vendor)" value={c.partyFirst} />
-        <Field label="Pihak Kedua" value={c.partySecond} />
-      </div>
-      {c.partyThird && <Field label="Pihak Ketiga" value={c.partyThird} />}
-      <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '16px 0' }} />
-      <Field label="Objek Kontrak" value={c.objectContract} />
-      <div className="form-row">
-        <Field label="Kuantitas" value={`${c.quantity} ${c.unit}`} />
-        <Field label="Harga" value={formatCurrency(c.price)} />
-      </div>
-      <div className="form-row">
-        <Field label="Masa Berlaku" value={`${formatDate(c.startDate)} — ${formatDate(c.endDate)}`} />
-        <Field label="Jenis Pembayaran" value={c.paymentType === 'cash' ? 'Tunai' : `Tempo ${c.topDays} Hari`} />
-      </div>
-      <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '16px 0' }} />
-      <Field label="Kebijakan Retur / Pengembalian Barang" value={c.returnPolicy} />
-    </div>
-  );
-}
+/* 
+NOTE: This is an example implementation. To update other pages:
 
-function ContractForm({ form, setForm }: { form: any; setForm: any }) {
-  const set = (key: string, val: any) => setForm((prev: any) => ({ ...prev, [key]: val }));
+1. LoginPage.tsx
+   - Use useLogin() hook instead of mock login
+   - Store token with ApiClient.setToken()
+
+2. DashboardPage.tsx
+   - Use useTransactionStats() for dashboard stats
+   - Use useContracts(), useOrders(), useReturns() for summaries
+
+3. OrdersPage.tsx
+   - Use useOrders() to fetch orders
+   - Use useCreateOrder() to create orders
+   - Use useApproveOrder() to approve orders
+
+4. POSPage.tsx
+   - Use useTransactions() to fetch transactions
+   - Use useCreateTransaction() for POS checkout
+   - Use useStockItems() to load products
+
+5. ReturnsPage.tsx
+   - Use useReturns() to fetch returns
+   - Use useCreateReturn() to create returns
+   - Use useApproveReturn() to approve returns
+
+6. MasterDataPage.tsx
+   - Use useStockItems() for products
+   - Use useContracts() for contracts
+   - Use CRUD operations for managing master data
+
+7. ReportsPage.tsx
+   - Use useTransactionStats() for revenue reports
+   - Use useContracts() for contract reports
+   - Use useReturns() for return reports
+*/
+
+function ReadOnlyField({
+  label,
+  value,
+}: {
+  label: string;
+  value: unknown;
+}) {
   return (
-    <div>
-      <div className="form-row">
-        <div className="form-group">
-          <label>Nomor PKS *</label>
-          <input value={form.noPKS} onChange={e => set('noPKS', e.target.value)} placeholder="PKS/2024/001" />
-        </div>
-        <div className="form-group">
-          <label>Status</label>
-          <select value={form.status} onChange={e => set('status', e.target.value)}>
-            {(['draft','review','active','expired','completed','renewed','terminated'] as const).map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
-          </select>
-        </div>
-      </div>
-      <div className="form-group">
-        <label>Judul Kontrak *</label>
-        <input value={form.title} onChange={e => set('title', e.target.value)} placeholder="Perjanjian Sewa Gerai / Kontrak Suplai / dll" />
-      </div>
-      <div className="form-row">
-        <div className="form-group">
-          <label>Pihak Pertama (Vendor) *</label>
-          <input value={form.partyFirst} onChange={e => set('partyFirst', e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label>Pihak Kedua *</label>
-          <input value={form.partySecond} onChange={e => set('partySecond', e.target.value)} placeholder="Nama Supplier / Reseller / Pelanggan" />
-        </div>
-      </div>
-      <div className="form-group">
-        <label>Pihak Ketiga (opsional)</label>
-        <input value={form.partyThird} onChange={e => set('partyThird', e.target.value)} placeholder="Pihak ketiga jika ada" />
-      </div>
-      <div className="form-group">
-        <label>Objek Kontrak *</label>
-        <input value={form.objectContract} onChange={e => set('objectContract', e.target.value)} placeholder="Deskripsi objek kerja sama" />
-      </div>
-      <div className="form-row">
-        <div className="form-group">
-          <label>Kuantitas</label>
-          <input type="number" value={form.quantity} onChange={e => set('quantity', Number(e.target.value))} min={1} />
-        </div>
-        <div className="form-group">
-          <label>Satuan</label>
-          <input value={form.unit} onChange={e => set('unit', e.target.value)} placeholder="Unit / Pcs / Jam / Hari" />
-        </div>
-      </div>
-      <div className="form-row">
-        <div className="form-group">
-          <label>Harga (Rp) *</label>
-          <input type="number" value={form.price} onChange={e => set('price', Number(e.target.value))} min={0} />
-        </div>
-        <div className="form-group">
-          <label>Jenis Pembayaran *</label>
-          <select value={form.paymentType} onChange={e => set('paymentType', e.target.value)}>
-            <option value="cash">Tunai (Cash)</option>
-            <option value="TOP">Tempo (TOP)</option>
-          </select>
-        </div>
-      </div>
-      {form.paymentType === 'TOP' && (
-        <div className="form-group">
-          <label>Durasi Tempo (Hari)</label>
-          <input type="number" value={form.topDays} onChange={e => set('topDays', Number(e.target.value))} min={1} />
-        </div>
-      )}
-      <div className="form-row">
-        <div className="form-group">
-          <label>Tanggal Mulai *</label>
-          <input type="date" value={form.startDate} onChange={e => set('startDate', e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label>Tanggal Selesai *</label>
-          <input type="date" value={form.endDate} onChange={e => set('endDate', e.target.value)} />
-        </div>
-      </div>
-      <div className="form-group">
-        <label>Kebijakan Retur / Pengembalian Barang</label>
-        <textarea value={form.returnPolicy} onChange={e => set('returnPolicy', e.target.value)} rows={3} placeholder="Jelaskan syarat dan ketentuan pengembalian barang..." style={{ resize: 'vertical' }} />
-      </div>
-      <div className="form-group">
-        <label>Upload File PKS (URL/Path)</label>
-        <input value={form.fileUrl} onChange={e => set('fileUrl', e.target.value)} placeholder="https://storage.gor.id/pks/..." />
+    <div className="form-group">
+      <label>{label}</label>
+      <div
+        style={{
+          padding: "10px 12px",
+          borderRadius: 8,
+          background: "var(--bg-secondary)",
+          minHeight: 42,
+          display: "flex",
+          alignItems: "center",
+          whiteSpace: "pre-wrap",
+        }}
+      >
+        {formatValue(value)}
       </div>
     </div>
   );

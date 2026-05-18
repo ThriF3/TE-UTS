@@ -10,7 +10,7 @@ export const mockUsers: User[] = [
   { id: 'u7', name: 'Dian Pratiwi', email: 'dian@gmail.com', role: 'pelanggan', phone: '08129876544', createdAt: '2024-03-05' },
 ];
 
-export const mockContracts: Contract[] = [
+export const mockContracts: any[] = [
   {
     id: 'c1', noPKS: 'PKS/2024/001',
     title: 'Perjanjian Sewa Gerai Olahraga',
@@ -74,7 +74,7 @@ export const mockStock: StockItem[] = [
   { id: 's8', name: 'Tas Olahraga Nike', sku: 'TAS-001', category: 'Apparel', stock: 30, unit: 'Pcs', buyPrice: 200000, sellPrice: 280000, supplierId: 'u4', supplierName: 'PT Sportstuff' },
 ];
 
-export const mockOrders: Order[] = [
+export const mockOrders: any[] = [
   {
     id: 'o1', noOrder: 'ORD/2024/001', type: 'booking_lapangan',
     customerId: 'u6', customerName: 'Rudi Santoso', contractId: 'c3',
@@ -103,7 +103,7 @@ export const mockOrders: Order[] = [
   },
 ];
 
-export const mockTransactions: Transaction[] = [
+export const mockTransactions: any[] = [
   {
     id: 't1', noTransaksi: 'TRX/2024/001',
     orderId: 'o1', contractId: 'c3',
@@ -137,7 +137,7 @@ export const mockTransactions: Transaction[] = [
   },
 ];
 
-export const mockReturns: Return[] = [
+export const mockReturns: any[] = [
   {
     id: 'r1', noRetur: 'RTR/2024/001', type: 'retur_barang',
     transactionId: 't2', noTransaksi: 'TRX/2024/002',
