@@ -1,0 +1,17 @@
+{
+    "contract_id": "DK01",
+    "title": "Kontrak Kerja Sama - PT Maju Bersama",
+    "party_first": "GOR Management System",
+    "party_second": "PT Maju Bersama",
+    "entity_type": "Supplier",
+    "object_contract": "Penyediaan layanan supplier untuk fasilitas olahraga",
+    "quantity": 50,
+    "unit": "Unit",
+    "price": 40905727,
+    "payment_type": "TOP",
+    "top_days": 90,
+    "start_date": "2026-06-07",
+    "end_date": "2027-06-07",
+    "status": "active",
+    "created_at": "2026-06-07T10:56:23.026679"
+}

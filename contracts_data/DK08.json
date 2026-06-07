@@ -1,0 +1,17 @@
+{
+    "contract_id": "DK08",
+    "title": "Kontrak Kerja Sama - UD Sumber Rejeki",
+    "party_first": "GOR Management System",
+    "party_second": "UD Sumber Rejeki",
+    "entity_type": "Distributor",
+    "object_contract": "Penyediaan layanan distributor untuk fasilitas olahraga",
+    "quantity": 13,
+    "unit": "Unit",
+    "price": 13239339,
+    "payment_type": "TOP",
+    "top_days": 60,
+    "start_date": "2026-06-07",
+    "end_date": "2027-06-07",
+    "status": "active",
+    "created_at": "2026-06-07T10:56:23.027387"
+}

@@ -1,0 +1,17 @@
+{
+    "contract_id": "DK04",
+    "title": "Kontrak Kerja Sama - UD Jaya Sentosa",
+    "party_first": "GOR Management System",
+    "party_second": "UD Jaya Sentosa",
+    "entity_type": "Distributor",
+    "object_contract": "Penyediaan layanan distributor untuk fasilitas olahraga",
+    "quantity": 49,
+    "unit": "Unit",
+    "price": 20986719,
+    "payment_type": "cash",
+    "top_days": null,
+    "start_date": "2026-06-07",
+    "end_date": "2027-06-07",
+    "status": "active",
+    "created_at": "2026-06-07T10:56:23.026993"
+}

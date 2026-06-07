@@ -1,0 +1,17 @@
+{
+    "contract_id": "DK03",
+    "title": "Kontrak Kerja Sama - PT Sinar Harapan",
+    "party_first": "GOR Management System",
+    "party_second": "PT Sinar Harapan",
+    "entity_type": "Supplier",
+    "object_contract": "Penyediaan layanan supplier untuk fasilitas olahraga",
+    "quantity": 32,
+    "unit": "Unit",
+    "price": 10975260,
+    "payment_type": "TOP",
+    "top_days": 90,
+    "start_date": "2026-06-07",
+    "end_date": "2027-06-07",
+    "status": "active",
+    "created_at": "2026-06-07T10:56:23.026918"
+}

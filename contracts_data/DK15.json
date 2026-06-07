@@ -1,0 +1,17 @@
+{
+    "contract_id": "DK15",
+    "title": "Kontrak Kerja Sama - PT Astra International",
+    "party_first": "GOR Management System",
+    "party_second": "PT Astra International",
+    "entity_type": "Supplier",
+    "object_contract": "Penyediaan layanan supplier untuk fasilitas olahraga",
+    "quantity": 97,
+    "unit": "Unit",
+    "price": 17158666,
+    "payment_type": "TOP",
+    "top_days": null,
+    "start_date": "2026-06-07",
+    "end_date": "2027-06-07",
+    "status": "active",
+    "created_at": "2026-06-07T10:56:23.027868"
+}

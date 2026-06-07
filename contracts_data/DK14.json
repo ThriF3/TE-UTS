@@ -1,0 +1,17 @@
+{
+    "contract_id": "DK14",
+    "title": "Kontrak Kerja Sama - CV Citra Mandiri",
+    "party_first": "GOR Management System",
+    "party_second": "CV Citra Mandiri",
+    "entity_type": "Distributor",
+    "object_contract": "Penyediaan layanan distributor untuk fasilitas olahraga",
+    "quantity": 67,
+    "unit": "Unit",
+    "price": 42139116,
+    "payment_type": "cash",
+    "top_days": null,
+    "start_date": "2026-06-07",
+    "end_date": "2027-06-07",
+    "status": "active",
+    "created_at": "2026-06-07T10:56:23.027788"
+}
